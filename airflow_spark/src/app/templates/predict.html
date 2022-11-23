@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- FavIcon -->
+    <link rel="icon" href="../static/worldcup.ico">
+    <!-- Bootstrap CSS -->
+    <!--  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">-->
+    <link rel="stylesheet" href="../static/bootstrap.min.css" crossorigin="anonymous">
+    <!-- Loding font -->
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:300,700" rel="stylesheet">
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" type="text/css" href="../static/styles.css">
+
+    <title>WorldCup Predictions</title>
+  </head>
+  <body>
+
+    <!-- Backgrounds -->
+
+    <div id="login-bg" class="container-fluid">
+
+      <div class="bg-img"></div>
+      <div class="bg-color"></div>
+    </div>
+
+    <!-- End Backgrounds -->
+
+    <div class="container" id="login">
+        <div class="row justify-content-center">
+        <div class="col-md-8">
+          <div class="login">
+
+            <h1>Result</h1>
+            
+            <!-- Loging form -->
+                  <form action="/">
+                    <div class="form-group">
+                      {% if result != 0.0 %}
+                        <h4 class="form-control" style="background-color: rgb(91, 168, 91)">{{teamhost}} - <span style="font-weight: bold;">Winner!</span></h4>
+                        <h4 class="form-control">{{teamaway}}</h4>
+                      {% else %}
+                        <h4 class="form-control">{{teamhost}}</h4>
+                        <h4 class="form-control" style="background-color: rgb(91, 168, 91)">{{teamaway}} - <span style="font-weight: bold;">Winner!</span></h4>
+                      {% endif %}
+                      <br>
+                        <p>Probability: <span style="font-weight: bold;">{{proba}}%</span></p>
+                    </div>
+                    <br>
+                    <button type="submit" class="btn btn-lg btn-block btn-success">Try a new prediction</button>
+                  </form>
+             <!-- End Loging form -->
+
+          </div>
+        </div>
+        </div>
+    </div>
+
+
+  </body>
+</html>
