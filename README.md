@@ -10,7 +10,7 @@ Se utilizará como base para el análisis un dataset disponible en [Kaggle](http
 
 ## <ins>Diagrama de arquitectura:
 
-![Architecture](./documentation/FinalTP.vpd.png)
+![Architecture](./documentation/img-arch.png)
 
 ## <ins>Implementación:
 
@@ -140,10 +140,28 @@ Inbound rules en security group:
 
 ![EMR](./documentation/db-table.png)
 
+# Instalación e implementación
+
+En el archivo  `implementation_guide.sh` se encuentran las instrucciones para dejar operativo el proyecto.
+
+En primer lugar debería crearse un servidor de EC2, en donde se clonará este git repo, y se realizarán las instalaciones y configuraciones correspondientes tanto para correr el servidor de Airflow como la app de Flask.
+
+El repo contiene:
+
+- `create_and_load_buckets.py` da inicio al proceso creando los buckets necesarios (si es que todavía no existen), y cargando files en ellos
+- `emr-dag.py` como dag principal y orquestador del proceso
+- Files que utilizará EMR: 
+    - `bootstrap_script.sh` configuración inicial del cluster e instalador de las librerías requeridas
+    - `convert_csv_to_parquet.py` source para uno de los procesos que correrán para transformar archivos crudos de Kaggle a los parquets necesarios para correr el modelo de ML
+    - `model_script.py` ejecutar el modelo clasificador RandomForestClassification
+- `src/app` directorio root de la aplicación de Flask, con todos sus ejecutables:
+    - `app.py`: código fuente de la app
+    - `dbconnect.py`: funciones helper para conectarse a la RDS
+
 # Mejoras
 
 ### 🥇 CloudFront:
-Cachear el contenido y reducir la latencia en las respuestas
+Cachear el contenido de la app y reducir la latencia en las respuestas
 
 ### 🥇 Route 53:
 Generar un DNS
@@ -153,7 +171,7 @@ Implementar un firewall para la app
 
 ### 🥇 ECR:
 
-
+Crear una imagen de nuestro docker-compose y utilizarlo desde ese servicio 
 
 ## __App demo video:__ 
 

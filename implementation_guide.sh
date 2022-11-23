@@ -1,6 +1,6 @@
 
 #-----------------------------------
-## CONNECT SSH
+## CONNECT VIA SSH TO EC2
 
 ## INSTALL GIT & CLONE REPO
 
@@ -26,7 +26,7 @@ curl -L "https://github.com/docker/compose/releases/download/1.28.2/docker-compo
 chmod +x /usr/local/bin/docker-compose
 ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 #install mysql
-sudo yum install mysql mysql-server -y
+yum install mysql mysql-server -y
 ##### INSTALL LIBRARIES
 
 #create new venv
@@ -190,3 +190,9 @@ docker-compose up airflow-init
 docker-compose up -d
 
 #####-----------------------------------------------------------
+
+# CREATE AN AMI OF THE EC2
+# USE IT AS LAUNCH TEMPLATE FOR THE AUTO SCALING GROUP
+# CREATE AN APPLICATIONS LOAD BALANCER USING THE INSTANCES OF THE ASG AS TARGET
+# CREATE A LAMBDA FUNCTION WITH THE airflow_spark/src/app/lambda_function.py CODE
+# TRIGGER THE LAMBDA BY INCOMING NEW FILES TO THE BUCKET itba-tp-01-raw-csv
