@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "App Load Balancer with Auto Scaling Group"
+Parameters:
+  KeyName:
+    Default: 'itbacde'
+    Description: Name of existing key pair to connect via SSH to instance
+    Type: String
+  InstanceType:
+    Default: 'm4.large'
+    Type: String
+  LaunchTemplateAmiId:
+    Description: The Id of the created AMI with deployed Flask app
+    Type: AWS::EC2::Image::Id
+  WebServerSecurityGroup:
+    Description: The name of the SG used in the running web server
+    Type: String
+  VpcId:
+    Description: Id of project's VPC
+    Type: String     
+  PublicSubnet1:
+    Description: Id of 1st public subnet
+    Type: String
+  PublicSubnet2:
+    Description: Id of 2nd public subnet
+    Type: String
+  PrivateSubnet1:
+    Description: Id of 1st private subnet
+    Type: String
+  PrivateSubnet2:
+    Description: Id of 2nd private subnet
+    Type: String        
+
+Resources:
+  AsgLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub ${AWS::StackName}-launch-template
+      LaunchTemplateData:
+        CreditSpecification:
+          CpuCredits: standard
+        ImageId: !Ref LaunchTemplateAmiId
+        InstanceType: !Ref InstanceType
+        KeyName: !Ref KeyName
+        Monitoring:
+          Enabled: True
+        SecurityGroupIds:
+          - !Ref WebServerSecurityGroup
+
+  ELBWebServerSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Enable HTTP access via port 80
+        SecurityGroupIngress:
+          - IpProtocol: tcp
+            FromPort: '80'
+            ToPort: '80'
+            CidrIp: 0.0.0.0/0
+        VpcId: !Ref VpcId
+
+  ApplicationAsg:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: ApplicationAsg
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '2'
+      HealthCheckGracePeriod: 300
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AsgLaunchTemplate
+        Version: !GetAtt AsgLaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      LoadBalancerNames:
+        - !Ref LoadBalancer
+  
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      CrossZone: 'true'
+      Listeners:
+        - LoadBalancerPort: '80'
+          InstancePort: '80'
+          Protocol: HTTP
+      HealthCheck:
+        Target: HTTP:80/
+        HealthyThreshold: '3'
+        UnhealthyThreshold: '5'
+        Interval: '30'
+        Timeout: '5'
+      SecurityGroups:
+        - !Ref ELBWebServerSecurityGroup   
+Outputs:
+  URL:
+    Description: URL of the website
+    Value: !Join ['', ['http://', !GetAtt [LoadBalancer, DNSName]]]

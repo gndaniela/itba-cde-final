@@ -142,7 +142,15 @@ Inbound rules en security group:
 
 # Instalación e implementación
 
-En el archivo  `implementation_guide.sh` se encuentran las instrucciones para dejar operativo el proyecto.
+1. Utilizando CloudFormation (opción sugerida): 
+
+En el archivo  `cfn_implementation_guide.md` se encuentran las instrucciones para dejar operativo el proyecto.
+
+2. Sin CloudFormation:
+
+En el archivo  `implementation_guide.md` se encuentran las instrucciones para dejar operativo el proyecto.
+
+* Lineamientos generales:
 
 En primer lugar debería crearse un servidor de EC2, en donde se clonará este git repo, y se realizarán las instalaciones y configuraciones correspondientes tanto para correr el servidor de Airflow como la app de Flask.
 
