@@ -1,0 +1,538 @@
+Description:  This template deploys a VPC, with a pair of public and private subnets spread
+  across two Availability Zones. It deploys an internet gateway, with a default
+  route on the public subnets. It deploys a pair of NAT gateways (one in each AZ),
+  and default routes for them in the private subnets.
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.192.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.11.0/24
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
+
+  PrivateSubnet3CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.22.0/24
+
+  PrivateSubnet4CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.23.0/24   
+
+  InstanceType:
+    Type: String
+    Default: 'm4.large'
+
+  KeyName:
+    Type: String
+    Default: 'itbacde'
+  
+  LambdaFunctionName:
+    Type: String
+    MinLength: '1'
+    MaxLength: '64'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9_-]*'
+    Description: The name of the Lambda function to be deployed
+    Default: TriggerDag
+
+  LabRoleArn:
+    Type: String
+    Description: The lab role arn to create Lambda
+  
+  DagId:
+    Type: String
+    Description: The name of the DAG to be Triggered    
+    Default: 'spark_submit_airflow'
+
+  BucketRawName:
+    Type: String
+    Description: Bucket for Kaggle raw data    
+    Default: 'itba-tp-01-raw-csv'
+
+
+  BucketParquetName:
+    Type: String
+    Description: Bucket for converted parquets  
+    Default: 'itba-tp-02-parquet'
+
+  BucketModelName:
+    Type: String
+    Description: Bucket to store output model from EMR   
+    Default: 'itba-tp-03-model'
+
+  BucketScriptsName:
+    Type: String
+    Description: Bucket to store EMR scripts   
+    Default: 'itba-tp-04-scripts'
+              
+  BucketBootstrapsName:
+    Type: String
+    Description: Bucket to store EMRs bootstrap script   
+    Default: 'itba-tp-05-bootstrap'
+
+  BucketEMRLogsName:
+    Type: String
+    Description: Bucket for EMR logs
+    Default: 'itba-tp-06-emr-logs'
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Subnet (AZ2)
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet (AZ2)
+
+  PrivateSubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet3CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet 2 (AZ1)
+
+  PrivateSubnet4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet4CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Subnet 2 (AZ2)                
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway2EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway2EIP.AllocationId
+      SubnetId: !Ref PublicSubnet2
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Public Routes
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ1)
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} Private Routes (AZ2)
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
+
+  PrivateSubnet3RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet3
+
+  PrivateSubnet4RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet4        
+
+  NoIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: "no-ingress-sg"
+      GroupDescription: "Security group with no ingress rule"
+      VpcId: !Ref VPC
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !Ref PrivateSubnet1
+      ImageId: ami-0fc61db8544a617ed
+      SecurityGroupIds:
+          - !Ref WebServerSecurityGroup
+      UserData:
+          Fn::Base64: |
+            #!/bin/bash -xe
+   
+            yum update -y
+            yum install python3 -y
+            yum install -y python3-pip
+            yum install -y build-essential libssl-dev libffi-dev python3-dev
+            yum install -y python3-venv
+            #install Docker as a package
+            amazon-linux-extras install docker
+            #start the Docker service
+            service docker start
+            #To be able to use Docker commands without using sudo, you have to add ec2-user to the docker group
+            usermod -a -G docker ec2-user
+            #Docker always on
+            chkconfig docker on
+            # Install docker-compose
+            curl -L "https://github.com/docker/compose/releases/download/1.28.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            chmod +x /usr/local/bin/docker-compose
+            ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
+            #install mysql
+            yum install mysql mysql-server -y
+
+  WebServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable HTTP - SSH - 8080 - 5000 - 3306
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '8080'
+          ToPort: '8080'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '5000'
+          ToPort: '5000'
+          CidrIp: 0.0.0.0/0    
+      VpcId: !Ref VPC
+
+  BucketRaw:
+    Type: AWS::S3::Bucket
+    DependsOn:
+      - ProcessingLambdaPermission
+    Properties:
+      BucketName: !Ref BucketRawName  
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: s3:ObjectCreated:*
+            Function: !GetAtt LambdaFunction.Arn
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix
+                  Value: .csv
+
+  ProcessingLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref LambdaFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub 'arn:aws:s3:::${BucketRawName}'
+      SourceAccount: !Ref AWS::AccountId
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Triggers the DAG if there's a change in a specific S3 bucket
+      FunctionName: !Ref LambdaFunctionName
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Runtime: python3.8
+      Role: !Ref LabRoleArn
+      Timeout: 240
+      Environment:
+        Variables:
+          DagId: !Ref DagId
+      Code:
+        ZipFile: |
+            import json
+            import boto3  
+            import logging
+            import os
+            import datetime
+            from datetime import timedelta
+            import urllib3
+
+            DAG_ID = os.environ['DAG_ID'] #'spark_submit_airflow'
+            LOG_LEVEL = os.environ.get('LOG_LEVEL', 'info').upper()
+
+            # setup logging to stdout, or just use print()
+            logging.basicConfig(format='%(asctime)s %(levelname)s %(name)s %(message)s')
+            logging.getLogger().setLevel(logging.getLevelName(LOG_LEVEL))
+
+            ex_date = datetime.datetime.now() + timedelta(days=-1)
+            ex_date = ex_date.strftime('%Y-%m-%dT%H:%M:%S%zZ')
+
+
+            def lambda_handler(event, context):
+                print('Getting Airflow instance private IP...')
+
+                ec2 = boto3.client('ec2')  
+                filters = [{  
+                    'Name': 'tag:Name',
+                    'Values': ['NewInstance']
+                    }]
+                reservations = ec2.describe_instances(Filters=filters)  
+                
+                private_ip = reservations['Reservations'][0]['Instances'][0]['PrivateIpAddress']
+
+                # TODO implement
+                print(private_ip)
+                
+                print('Sending Airflow API a request to run the dag')
+                http = urllib3.PoolManager()
+                
+                headers = {
+                  'Content-Type': 'application/json'
+                }
+                
+                headers.update(urllib3.make_headers(basic_auth='airflow:airflow'))
+                
+                logging.info(f'Triggering Airflow DAG {DAG_ID}')
+
+                url = f'http://{private_ip}:8080/api/v1/dags/{DAG_ID}/dagRuns'
+                payload = json.dumps({
+                    'dag_run_id': 'lambda_run_' + datetime.datetime.utcnow().isoformat(),
+                    'execution_date': ex_date,
+                    'conf': {},
+                })
+                
+                response = http.request(
+                    'POST',
+                    url=url,
+                    body=payload,
+                    headers=headers,
+                    retries=False
+                )
+                
+                print(f'Response status: {response.status}')
+
+                data = json.loads(response.data)
+
+                print(f'Response details: {data}')
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref WebServerSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1 
+          - !Ref PrivateSubnet2          
+
+  BucketParquet:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Ref BucketParquetName
+
+  BucketModel:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Ref BucketModelName
+
+  BucketScripts:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Ref BucketScriptsName               
+  
+  BucketBootstraps:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Ref BucketBootstrapsName   
+
+  BucketEMRLogs:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: !Ref BucketEMRLogsName  
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
+
+  PrivateSubnets:
+    Description: A list of the private subnets
+    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2,  !Ref PrivateSubnet3,  !Ref PrivateSubnet4]]
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !Ref PublicSubnet1
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Value: !Ref PublicSubnet2
+
+  PrivateSubnet1:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !Ref PrivateSubnet1
+
+  PrivateSubnet2:
+    Description: A reference to the private subnet in the 2nd Availability Zone
+    Value: !Ref PrivateSubnet2
+
+  PrivateSubnet3:
+    Description: A reference to the 2nd private subnet in the 1st Availability Zone
+    Value: !Ref PrivateSubnet3
+
+  PrivateSubnet4:
+    Description: A reference to the 2nd private subnet in the 2nd Availability Zone
+    Value: !Ref PrivateSubnet4  
+
+  NoIngressSecurityGroup:
+    Description: Security group with no ingress rule
+    Value: !Ref NoIngressSecurityGroup

@@ -18,8 +18,8 @@ from create_and_load_buckets import main
 
 # Configurations
 SCRIPTS_BUCKET_NAME = "itba-tp-04-scripts"
-PARQUETS_BUCKET_NAME = "itba-tp-02-parquet"  
-MODEL_BUCKET_NAME = "itba-tp-03-model" 
+PARQUETS_BUCKET_NAME = "itba-tp-02-parquet"
+MODEL_BUCKET_NAME = "itba-tp-03-model"
 s3_script_convert = "convert_csv_to_parquet.py"
 s3_script_model = "model_script.py"
 
@@ -67,14 +67,14 @@ JOB_FLOW_OVERRIDES = {
             ],
         }
     ],
-    "BootstrapActions": [ 
-      { 
-         "Name": "Add custom libraries",
-         "ScriptBootstrapAction": { 
-            "Path": "s3://itba-tp-05-bootstrap/bootstrap_script.sh"
-         }
-      }
-   ],
+    "BootstrapActions": [
+        {
+            "Name": "Add custom libraries",
+            "ScriptBootstrapAction": {
+                "Path": "s3://itba-tp-05-bootstrap/bootstrap_script.sh"
+            },
+        }
+    ],
     "Instances": {
         "InstanceGroups": [
             {
@@ -122,7 +122,7 @@ dag = DAG(
 
 start_data_pipeline = DummyOperator(task_id="start_data_pipeline", dag=dag)
 
-#Create buckets and copy files
+# Create buckets and copy files
 create_buckets_and_files = PythonOperator(
     dag=dag,
     task_id="create_buckets_and_files",
@@ -145,11 +145,11 @@ step_adder = EmrAddStepsOperator(
     aws_conn_id="aws_default",
     steps=SPARK_STEPS,
     params={
-            "SCRIPTS_BUCKET_NAME": SCRIPTS_BUCKET_NAME,
-            "PARQUETS_BUCKET_NAME": PARQUETS_BUCKET_NAME,
-            "MODEL_BUCKET_NAME": MODEL_BUCKET_NAME,
-            "s3_script_convert": s3_script_convert,
-            "s3_script_model": s3_script_model,
+        "SCRIPTS_BUCKET_NAME": SCRIPTS_BUCKET_NAME,
+        "PARQUETS_BUCKET_NAME": PARQUETS_BUCKET_NAME,
+        "MODEL_BUCKET_NAME": MODEL_BUCKET_NAME,
+        "s3_script_convert": s3_script_convert,
+        "s3_script_model": s3_script_model,
     },
     dag=dag,
 )
