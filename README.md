@@ -10,7 +10,7 @@ Se utilizará como base para el análisis un dataset disponible en [Kaggle](http
 
 ## <ins>Diagrama de arquitectura:
 
-![Architecture](./documentation/img-narch.png)
+![Architecture](./documentation/img-archn.png)
 
 ## <ins>Implementación:
 

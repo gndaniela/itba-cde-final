@@ -174,20 +174,6 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
     dag=dag,
 )
 
-# # Run Flask app
-# run_flask_app = DockerOperator(
-#         task_id='run_flask_app',
-#         image='flask-image',
-#         api_version='auto',
-#         auto_remove=False,
-#         mount_tmp_dir=False,
-#         container_name='flask-container',
-#         command='echo "Message from Flask"',
-#         docker_url='unix://var/run/docker.sock',
-#         network_mode='bridge',
-#         dag=dag
-# )
-
 end_data_pipeline = DummyOperator(task_id="end_data_pipeline", dag=dag)
 
 start_data_pipeline >> create_buckets_and_files >> create_emr_cluster
