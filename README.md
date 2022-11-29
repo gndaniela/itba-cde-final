@@ -56,7 +56,7 @@ VPC creada en la región US East - N. Virginia.
 Está desplegada en dos AZs (us-east-1a, us-east-1b), cada una con la siguiente configuración:
 
 * Subnets:
-    - 1 subnet privada
+    - 2 subnet privada
     - 1 subnet pública
     - 1 NAT Gateway en la subnet pública
 
