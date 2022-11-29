@@ -47,6 +47,10 @@ Parameters:
     Type: String
     Default: 'm4.large'
 
+  EC2InstanceName:
+    Type: String
+    Default: "ServerInstance"
+
   KeyName:
     Type: String
     Default: 'itbacde'
@@ -309,9 +313,12 @@ Resources:
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
       SubnetId: !Ref PrivateSubnet1
-      ImageId: ami-0fc61db8544a617ed
+      ImageId: ami-0e7c9793f7bd67d70
       SecurityGroupIds:
           - !Ref WebServerSecurityGroup
+      Tags:
+          - Key: Name
+            Value: !Ref EC2InstanceName    
       UserData:
           Fn::Base64: |
             #!/bin/bash -xe
@@ -335,6 +342,21 @@ Resources:
             ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
             #install mysql
             yum install mysql mysql-server -y
+            yum install git -y
+            amazon-linux-extras install nginx1.12 -y
+
+  InstanceBastion:
+      Type: AWS::EC2::Instance
+      Properties:
+        InstanceType: t2.micro
+        KeyName: !Ref KeyName
+        SubnetId: !Ref PublicSubnet1
+        ImageId: ami-0e7c9793f7bd67d70
+        SecurityGroupIds:
+            - !Ref WebServerSecurityGroup
+        Tags:
+            - Key: Name
+              Value: "Bastion"
 
   WebServerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -356,8 +378,22 @@ Resources:
         - IpProtocol: tcp
           FromPort: '5000'
           ToPort: '5000'
-          CidrIp: 0.0.0.0/0    
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '3306'
+          ToPort: '3306'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '0'
+          ToPort: '65535'
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
       VpcId: !Ref VPC
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: SG for Lambda            
+      VpcId: !Ref VPC    
 
   BucketRaw:
     Type: AWS::S3::Bucket
@@ -396,7 +432,8 @@ Resources:
       Timeout: 240
       Environment:
         Variables:
-          DagId: !Ref DagId
+          DAG_ID: !Ref DagId
+          INSTANCE_NAME: !Ref EC2InstanceName
       Code:
         ZipFile: |
             import json
@@ -407,6 +444,7 @@ Resources:
             from datetime import timedelta
             import urllib3
 
+            INSTANCE_NAME = os.environ['INSTANCE_NAME']
             DAG_ID = os.environ['DAG_ID'] #'spark_submit_airflow'
             LOG_LEVEL = os.environ.get('LOG_LEVEL', 'info').upper()
 
@@ -424,7 +462,7 @@ Resources:
                 ec2 = boto3.client('ec2')  
                 filters = [{  
                     'Name': 'tag:Name',
-                    'Values': ['NewInstance']
+                    'Values': [INSTANCE_NAME]
                     }]
                 reservations = ec2.describe_instances(Filters=filters)  
                 
@@ -466,7 +504,7 @@ Resources:
                 print(f'Response details: {data}')
       VpcConfig:
         SecurityGroupIds:
-          - !Ref WebServerSecurityGroup
+          - !Ref LambdaSecurityGroup
         SubnetIds:
           - !Ref PrivateSubnet1 
           - !Ref PrivateSubnet2          

@@ -5,7 +5,8 @@
 
 Once the creation is complete:
 
-* Connect via SSH to the EC2 instance
+* From the local machine, connect via SSH to the EC2 instance (Bastion host)
+* From the bastion host, connect via SSH to principal server in private subnet (ServerInstance)
 * Clone this repo
 * Config ~/.aws/credentials
 * Create a new virtual environment and install requirements.txt
@@ -14,142 +15,135 @@ Once the creation is complete:
         mkdir /home/ec2-user/venv
         python3 -m venv venv
         source venv/bin/activate
-        pip3 install -r requirements.txt
+        pip3 install -r <cloned-repo-name>/airflow_spark/src/app/requirements.txt
 
-* Config all app files and services
+* Create a MySQL RDS and change endpoint and connections in <cloned-repo-name>/airflow_spark/src/app/dbconnect.py
+* Config all app files and services:
 
+`sudo nano /etc/systemd/system/app.service`
 
-            cd
-            mkdir /etc/systemd/system && cd /etc/systemd/system
-            touch app.service
-            echo '[Unit]
-            Description=Gunicorn instance for Flask app
-            After=network.target
+        [Unit]
+        Description=Gunicorn instance for Flask app
+        After=network.target
 
-            [Service]
-            User=ec2-user
-            Group=ec2-user
-            WorkingDirectory=/home/ec2-user/itba-cde-final/airflow_spark/src/app
-            ExecStart=/home/ec2-user/venv/bin/gunicorn -b localhost:5000 app:app
-            Restart=always
+        [Service]
+        User=ec2-user
+        Group=ec2-user
+        WorkingDirectory=/home/ec2-user/itba-cde-final/airflow_spark/src/app
+        ExecStart=/home/ec2-user/venv/bin/gunicorn -b localhost:5000 app:app
+        Restart=always
 
-            [Install]
-            WantedBy=multi-user.target
-            ' > app.service
+        [Install]
+        WantedBy=multi-user.target
 
-            #GUNICORN SERVICE
-            touch gunicorn.service
-            echo '[Unit]
-            Description=gunicorn daemon
-            #Requires=gunircorn.socket
-            After=network.target
+`sudo nano /etc/systemd/system/gunicorn.service`
 
-            [Service]
-            User=ec2-user
-            Group=ec2-user
-            WorkingDirectory=/home/ec2-user/itba-cde-final/airflow_spark/src/app
-            ExecStart=/home/ec2-user/venv/bin/gunicorn --access-logfile - --workers 3 --bind localhost:5000 app:app
+        [Unit]
+        Description=gunicorn daemon
+        #Requires=gunircorn.socket
+        After=network.target
 
-            [Install]
-            WantedBy=multi-user.target
-            ' > gunicorn.service
+        [Service]
+        User=ec2-user
+        Group=ec2-user
+        WorkingDirectory=/home/ec2-user/itba-cde-final/airflow_spark/src/app
+        ExecStart=/home/ec2-user/venv/bin/gunicorn --access-logfile - --workers 3 --bind localhost:5000 app:app
 
-            #NGINX SERVICE
-            cd
-            cd /etc/nginx
-            rm nginx.conf
+        [Install]
+        WantedBy=multi-user.target
+        ' > gunicorn.service
 
-            touch nginx.conf
-            echo '# For more information on configuration, see:
-            #   * Official English Documentation: http://nginx.org/en/docs/
-            #   * Official Russian Documentation: http://nginx.org/ru/docs/
+`sudo nano /etc/nginx/nginx.conf`
 
-            user nginx;
-            worker_processes auto;
-            error_log /var/log/nginx/error.log;
-            pid /run/nginx.pid;
+        # For more information on configuration, see:
+        #   * Official English Documentation: http://nginx.org/en/docs/
+        #   * Official Russian Documentation: http://nginx.org/ru/docs/
 
-            # Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
-            include /usr/share/nginx/modules/*.conf;
+        user nginx;
+        worker_processes auto;
+        error_log /var/log/nginx/error.log;
+        pid /run/nginx.pid;
 
-            events {
-                worker_connections 1024;
-            }
+        # Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
+        include /usr/share/nginx/modules/*.conf;
 
-            http {
-                log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                                '$status $body_bytes_sent "$http_referer" '
-                                '"$http_user_agent" "$http_x_forwarded_for"';
+        events {
+            worker_connections 1024;
+        }
 
-                access_log  /var/log/nginx/access.log  main;
+        http {
+            log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                            '$status $body_bytes_sent "$http_referer" '
+                            '"$http_user_agent" "$http_x_forwarded_for"';
 
-                sendfile            on;
-                tcp_nopush          on;
-                tcp_nodelay         on;
-                keepalive_timeout   65;
-                types_hash_max_size 4096;
+            access_log  /var/log/nginx/access.log  main;
 
-                include             /etc/nginx/mime.types;
-                default_type        application/octet-stream;
+            sendfile            on;
+            tcp_nopush          on;
+            tcp_nodelay         on;
+            keepalive_timeout   65;
+            types_hash_max_size 4096;
 
-                # Load modular configuration files from the /etc/nginx/conf.d directory.
-                # See http://nginx.org/en/docs/ngx_core_module.html#include
-                # for more information.
-                include /etc/nginx/conf.d/*.conf;
+            include             /etc/nginx/mime.types;
+            default_type        application/octet-stream;
 
-                server {
-                    listen       80;
-                    listen       [::]:80;
-                    server_name  _;
+            # Load modular configuration files from the /etc/nginx/conf.d directory.
+            # See http://nginx.org/en/docs/ngx_core_module.html#include
+            # for more information.
+            include /etc/nginx/conf.d/*.conf;
 
-                    location / {
-                    proxy_pass http://127.0.0.1:5000;
-                    }
+            server {
+                listen       80;
+                listen       [::]:80;
+                server_name  _;
+
+                location / {
+                proxy_pass http://127.0.0.1:5000;
                 }
-
-            # Settings for a TLS enabled server.
-            #
-            #    server {
-            #        listen       443 ssl http2;
-            #        listen       [::]:443 ssl http2;
-            #        server_name  _;
-            #        root         /usr/share/nginx/html;
-            #
-            #        ssl_certificate "/etc/pki/nginx/server.crt";
-            #        ssl_certificate_key "/etc/pki/nginx/private/server.key";
-            #        ssl_session_cache shared:SSL:1m;
-            #        ssl_session_timeout  10m;
-            #        ssl_ciphers PROFILE=SYSTEM;
-            #        ssl_prefer_server_ciphers on;
-            #
-            #        # Load configuration files for the default server block.
-            #        include /etc/nginx/default.d/*.conf;
-            #
-            #        error_page 404 /404.html;
-            #            location = /40x.html {
-            #        }
-            #
-            #        error_page 500 502 503 504 /50x.html;
-            #            location = /50x.html {
-            #        }
-            #    }
-
             }
-            ' > nginx.conf
 
-            cd
+        # Settings for a TLS enabled server.
+        #
+        #    server {
+        #        listen       443 ssl http2;
+        #        listen       [::]:443 ssl http2;
+        #        server_name  _;
+        #        root         /usr/share/nginx/html;
+        #
+        #        ssl_certificate "/etc/pki/nginx/server.crt";
+        #        ssl_certificate_key "/etc/pki/nginx/private/server.key";
+        #        ssl_session_cache shared:SSL:1m;
+        #        ssl_session_timeout  10m;
+        #        ssl_ciphers PROFILE=SYSTEM;
+        #        ssl_prefer_server_ciphers on;
+        #
+        #        # Load configuration files for the default server block.
+        #        include /etc/nginx/default.d/*.conf;
+        #
+        #        error_page 404 /404.html;
+        #            location = /40x.html {
+        #        }
+        #
+        #        error_page 500 502 503 504 /50x.html;
+        #            location = /50x.html {
+        #        }
+        #    }
 
-            #activate services
-            sudo systemctl enable nginx
-            sudo systemctl enable app
-            sudo systemctl enable gunicorn
-            sudo systemctl daemon-reload
-            sudo systemctl start gunicorn
-            sudo systemctl start nginx
-            sudo systemctl start app
-            sudo systemctl status gunicorn
-            sudo systemctl status nginx
-            sudo systemctl status app
+        }
+
+        cd
+
+* Activate created services
+        sudo systemctl enable nginx
+        sudo systemctl enable app
+        sudo systemctl enable gunicorn
+        sudo systemctl daemon-reload
+        sudo systemctl start gunicorn
+        sudo systemctl start nginx
+        sudo systemctl start app
+        sudo systemctl status gunicorn
+        sudo systemctl status nginx
+        sudo systemctl status app
 
 * Config Airflow server
 
