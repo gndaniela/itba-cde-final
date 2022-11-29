@@ -134,6 +134,7 @@ Once the creation is complete:
         cd
 
 * Activate created services
+
         sudo systemctl enable nginx
         sudo systemctl enable app
         sudo systemctl enable gunicorn
